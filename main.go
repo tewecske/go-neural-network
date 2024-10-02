@@ -9,16 +9,62 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+
+	"gonum.org/v1/gonum/mat"
 )
 
 type Matrix [][]float64
 
+var asciiChars = " .,:;lodx%CO0@#KXWM"
+
 func main() {
+	data := make([]float64, 15)
+	for i := range data {
+		data[i] = rand.NormFloat64()
+	}
+	dense := mat.NewDense(3, 5, data)
+	printDense(dense)
+
+}
+func off() {
+	matrix := readData()
+
+	m := len(matrix)
+	n := len(matrix[0])
+	printMatrix(matrix)
+	println(m, n)
+
+	data_train := transposeMatrix(matrix)
+	printMatrix(data_train)
+
+	Y_train := data_train[0]
+	println(Y_train)
+	X_train := data_train[1:]
+	printMatrix(X_train)
+
+	fmt.Println(len(Y_train))
+	fmt.Println(Y_train[0:10])
+	fmt.Println(len(X_train))
+
+	W1, b1, W2, b2 := initParams()
+	forwardPropagation(W1, b1, W2, b2, X_train)
+
+}
+
+// func main() {
+// 	fmt.Println(1.1 * 2)
+// }
+
+// func main() {
+// 	matrix := readData()
+// 	printDigit(matrix)
+// }
+
+func readData() [][]int {
 	// Open the CSV file
 	file, err := os.Open("data/train.csv")
 	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return
+		log.Fatal("Error opening file:", err)
 	}
 	defer file.Close()
 
@@ -28,8 +74,7 @@ func main() {
 	// Skip the header row
 	_, err = reader.Read()
 	if err != nil {
-		fmt.Println("Error reading header:", err)
-		return
+		log.Fatal("Error reading header:", err)
 	}
 
 	// Initialize the matrix
@@ -43,8 +88,7 @@ func main() {
 			if err.Error() == "EOF" {
 				break
 			}
-			fmt.Println("Error reading row:", err)
-			return
+			log.Fatal("Error reading row:", err)
 		}
 
 		// Convert the row to integers
@@ -52,8 +96,7 @@ func main() {
 		for i, value := range record {
 			num, err := strconv.Atoi(value)
 			if err != nil {
-				fmt.Printf("Error converting value to int: %s", err)
-				return
+				log.Fatal("Error converting value to int: %s", err)
 			}
 			row[i] = num
 		}
@@ -62,39 +105,31 @@ func main() {
 		matrix = append(matrix, row)
 	}
 
-	m := len(matrix)
-	n := len(matrix[0])
-	printMatrix(matrix)
-	println(m, n)
-
-	data_train := transposeMatrix(matrix)
-	printMatrix(data_train)
-
-	Y_train := data_train[0]
-	X_train := data_train[1:]
-
-	fmt.Println(len(Y_train))
-	fmt.Println(Y_train[0:10])
-	fmt.Println(len(X_train))
-
-	// W1, b1, W2, b2 := initParams()
-
+	return matrix
 }
 
+//	func main() {
+//		W1, b1, W2, b2 := initParams()
+//		printMatrix(W1)
+//		printMatrix(b1)
+//		printMatrix(W2)
+//		printMatrix(b2)
+//	}
+
 func initParams() (W1 Matrix, b1 Matrix, W2 Matrix, b2 Matrix) {
-	W1, err := Subtract(Randn(10, 784).(Matrix), 0.5)
+	W1, err := Subtract(Randn2D(10, 784), 0.5)
 	if err != nil {
 		log.Fatal(err)
 	}
-	b1, err = Subtract(Randn(10, 1).(Matrix), 0.5)
+	b1, err = Subtract(Randn2D(10, 1), 0.5)
 	if err != nil {
 		log.Fatal(err)
 	}
-	W2, err = Subtract(Randn(10, 10).(Matrix), 0.5)
+	W2, err = Subtract(Randn2D(10, 10), 0.5)
 	if err != nil {
 		log.Fatal(err)
 	}
-	b2, err = Subtract(Randn(10, 1).(Matrix), 0.5)
+	b2, err = Subtract(Randn2D(10, 1), 0.5)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -110,9 +145,9 @@ func ReLU(Z [][]float64) Matrix {
 	return m.(Matrix)
 }
 
-func ReLUDeriv(Z Matrix) {
-	return Z > 0
-}
+// func ReLUDeriv(Z Matrix) {
+// 	return Z > 0
+// }
 
 func softmax(Z Matrix) Matrix {
 	m1 := Exp(Z)
@@ -124,8 +159,8 @@ func softmax(Z Matrix) Matrix {
 	return A
 }
 
-func forwardPropagation(W1 Matrix, b1 Matrix, W2 Matrix, b2 Matrix, X Matrix) (Matrix, Matrix, Matrix, Matrix) {
-	Z1, err := Dot(W1, X)
+func forwardPropagation(W1 Matrix, b1 Matrix, W2 Matrix, b2 Matrix, X [][]int) (Matrix, Matrix, Matrix, Matrix) {
+	Z1, err := DotT(W1, X)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -192,6 +227,7 @@ func backPropagation(Z1 Matrix, A1 Matrix, Z2 Matrix, A2 Matrix, W2 Matrix, Y []
 		log.Fatal(err)
 	}
 	db2 := 1 / float64(m) * npSum(dZ2)
+	_, _ = dW2, db2
 }
 
 func npSum(a Matrix) float64 {
@@ -212,6 +248,12 @@ func SumA(a []float64) float64 {
 	return sum
 }
 
+// func main() {
+// 	matrix := [][]float64{{1, 2, 3}, {4, 5, 6}}
+// 	result := transposeMatrix(matrix)
+// 	printMatrix(result)
+// }
+
 func transposeMatrix[T any](matrix [][]T) [][]T {
 	rows := len(matrix)
 	cols := len(matrix[0])
@@ -230,17 +272,59 @@ func transposeMatrix[T any](matrix [][]T) [][]T {
 	return transposed
 }
 
-func printMatrix(matrix [][]int) {
-	// Print the dimensions of the matrix
-	fmt.Printf("Matrix dimensions: %d rows x %d columns", len(matrix), len(matrix[0]))
+func printDense(matrix *mat.Dense) {
+	fmt.Printf("Matrix dimensions: %d rows x %d columns\n", matrix.RawMatrix().Rows, matrix.RawMatrix().Cols)
 
-	// Example: Print the first 5 rows and 10 columns
-	for i := 0; i < 5 && i < len(matrix); i++ {
-		fmt.Printf("Row %d: ", i)
-		for j := 0; j < 10 && j < len(matrix[i]); j++ {
-			fmt.Printf("%3d ", matrix[i][j])
+	fmt.Println("[")
+	for i := 0; i < 5 && i < matrix.RawMatrix().Rows; i++ {
+		fmt.Printf("Row %d: [", i)
+		for j := 0; j < 785 && j < matrix.RawMatrix().Cols; j++ {
+			fmt.Printf("%.2f ", matrix.At(i, j))
 		}
-		fmt.Println("...")
+		fmt.Println("... ]")
+	}
+	fmt.Println("]")
+
+}
+
+func printMatrix[T any](matrix [][]T) {
+	fmt.Printf("Matrix dimensions: %d rows x %d columns\n", len(matrix), len(matrix[0]))
+
+	fmt.Println("[")
+	intfloat := 0
+	switch any(matrix).(type) {
+	case [][]int:
+		intfloat = 0
+	case [][]float64:
+		intfloat = 1
+	}
+	for i := 0; i < 5 && i < len(matrix); i++ {
+		fmt.Printf("Row %d: [", i)
+		for j := 0; j < 785 && j < len(matrix[i]); j++ {
+			if intfloat == 0 {
+				fmt.Printf("%3d ", matrix[i][j])
+				if j%28 == 0 {
+					fmt.Println()
+				}
+			} else {
+				fmt.Printf("%.2f ", matrix[i][j])
+			}
+		}
+		fmt.Println("... ]")
+	}
+	fmt.Println("]")
+
+}
+
+func printDigit(matrix [][]int) {
+	for i := 0; i < 5 && i < len(matrix); i++ {
+		for j := 1; j < 785 && j < len(matrix[i]); j++ {
+			// fmt.Print(myChar[int(matrix[i][j]/(255/len(myChar)+1))])
+			fmt.Print(string(asciiChars[int(matrix[i][j]/(255/len(asciiChars)+1))]))
+			if j%28 == 0 {
+				fmt.Println()
+			}
+		}
 	}
 
 }
@@ -285,6 +369,32 @@ func Rand(dims ...int) interface{} {
 	return reshape(flat, dims)
 }
 
+// func main() {
+// 	m, _ := Subtract(Rand2D(3, 4), 0.5)
+// 	printMatrix(m)
+// }
+
+type RandFunc func() float64
+
+func Rand2D(dimx, dimy int) Matrix {
+	return Rand2DF(dimx, dimy, rand.Float64)
+}
+func Randn2D(dimx, dimy int) Matrix {
+	return Rand2DF(dimx, dimy, rand.NormFloat64)
+}
+func Rand2DF(dimx, dimy int, rf RandFunc) Matrix {
+	totalSize := dimx * dimy
+
+	// Generate a flat slice of random numbers from standard normal distribution
+	flat := make([]float64, totalSize)
+	for i := range flat {
+		flat[i] = rf()
+	}
+
+	// Reshape the flat slice according to the input dimensions
+	return reshape2D(flat, dimx, dimy)
+}
+
 func Randn(dims ...int) interface{} {
 	if len(dims) == 0 {
 		return rand.NormFloat64()
@@ -323,6 +433,62 @@ func reshape(flat []float64, dims []int) interface{} {
 	}
 
 	return result
+}
+
+func reshape1D(flat []float64, dim int) []float64 {
+	if dim == 1 {
+		return flat
+	}
+
+	result := make([]float64, dim)
+	for i := range result {
+		subSlice := flat[i]
+		result[i] = subSlice
+	}
+
+	return result
+}
+
+// reshape takes a flat slice and reshapes it according to the given dimensions
+func reshape2D(flat []float64, dimx, dimy int) Matrix {
+	result := make([][]float64, dimx)
+	for i := range result {
+		subSlice := flat[i*dimy : (i+1)*dimy]
+		result[i] = reshape1D(subSlice, dimy)
+	}
+
+	return result
+}
+
+func DotT[T any](a Matrix, b [][]T) (Matrix, error) {
+	if len(a) == 0 || len(b) == 0 || len(a[0]) == 0 || len(b[0]) == 0 {
+		return nil, errors.New("empty matrix")
+	}
+	if len(a[0]) != len(b) {
+		return nil, errors.New("incompatible matrix dimensions")
+	}
+
+	rows, cols := len(a), len(b[0])
+	result := make(Matrix, rows)
+	for i := range result {
+		result[i] = make([]float64, cols)
+	}
+
+	for i := 0; i < rows; i++ {
+		for j := 0; j < cols; j++ {
+			for k := 0; k < len(b); k++ {
+				m := b[k][j]
+				switch any(m).(type) {
+				case int:
+					result[i][j] += a[i][k] * float64(any(m).(int))
+				case float64:
+					result[i][j] += a[i][k] * any(m).(float64)
+				}
+			}
+		}
+	}
+
+	return result, nil
 }
 
 func Dot(a, b Matrix) (Matrix, error) {
