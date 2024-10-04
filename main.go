@@ -13,42 +13,54 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
-type Matrix [][]float64
-
 var asciiChars = " .,:;lodx%CO0@#KXWM"
 
-func main() {
-	data := make([]float64, 15)
-	for i := range data {
-		data[i] = rand.NormFloat64()
-	}
-	dense := mat.NewDense(3, 5, data)
-	printDense(dense)
+// func main() {
+// 	data := make([]float64, 15)
+// 	for i := range data {
+// 		data[i] = rand.NormFloat64()
+// 	}
+// 	dense := mat.NewDense(3, 5, data)
+// 	printDense(dense)
+//
+// }
 
-}
 func off() {
-	matrix := readData()
+	data, m, n := readData()
 
-	m := len(matrix)
-	n := len(matrix[0])
-	printMatrix(matrix)
+	matrix := mat.NewDense(m, n, data)
+	printDense(matrix)
 	println(m, n)
 
-	data_train := transposeMatrix(matrix)
+	// data_train := transposeMatrix(matrix)
+	data_train := matrix.T()
 	printMatrix(data_train)
 
-	Y_train := data_train[0]
+	Y_train := matrix.ColView(0)
 	println(Y_train)
-	X_train := data_train[1:]
+	X_train := slice(matrix, 1, matrix.RawMatrix().Rows)
 	printMatrix(X_train)
 
-	fmt.Println(len(Y_train))
-	fmt.Println(Y_train[0:10])
-	fmt.Println(len(X_train))
+	fmt.Println(Y_train.Len())
+	fmt.Println(X_train.Dims())
 
-	W1, b1, W2, b2 := initParams()
-	forwardPropagation(W1, b1, W2, b2, X_train)
+	// W1, b1, W2, b2 := initParams()
+	// forwardPropagation(W1, b1, W2, b2, X_train)
 
+}
+
+func slice(m *mat.Dense, startIdx int, endIdx int) *mat.Dense {
+	cols := m.RawMatrix().Cols
+	newRows := endIdx - startIdx
+
+	newMat := mat.NewDense(newRows, cols, nil)
+
+	for i := startIdx; i < endIdx; i++ {
+		row := mat.Row(nil, i, m)
+		newMat.SetRow(i-startIdx, row)
+	}
+
+	return newMat
 }
 
 // func main() {
@@ -60,7 +72,7 @@ func off() {
 // 	printDigit(matrix)
 // }
 
-func readData() [][]int {
+func readData() ([]float64, int, int) {
 	// Open the CSV file
 	file, err := os.Open("data/train.csv")
 	if err != nil {
@@ -78,9 +90,10 @@ func readData() [][]int {
 	}
 
 	// Initialize the matrix
-	var matrix [][]int
+	var matrix []float64
 
-	// Read the data rows
+	var rows = 0
+	var cols int
 	for {
 		record, err := reader.Read()
 		if err != nil {
@@ -91,33 +104,33 @@ func readData() [][]int {
 			log.Fatal("Error reading row:", err)
 		}
 
-		// Convert the row to integers
-		row := make([]int, len(record))
-		for i, value := range record {
+		rows++
+		cols = len(record)
+		for _, value := range record {
 			num, err := strconv.Atoi(value)
 			if err != nil {
 				log.Fatal("Error converting value to int: %s", err)
 			}
-			row[i] = num
+			matrix = append(matrix, float64(num))
 		}
 
-		// Append the row to the matrix
-		matrix = append(matrix, row)
 	}
 
-	return matrix
+	return matrix, rows, cols
 }
 
-//	func main() {
-//		W1, b1, W2, b2 := initParams()
-//		printMatrix(W1)
-//		printMatrix(b1)
-//		printMatrix(W2)
-//		printMatrix(b2)
-//	}
+func main() {
+	W1, b1, W2, b2 := initParams()
+	printMatrix(W1)
+	printMatrix(b1)
+	printMatrix(W2)
+	printMatrix(b2)
+}
 
-func initParams() (W1 Matrix, b1 Matrix, W2 Matrix, b2 Matrix) {
-	W1, err := Subtract(Randn2D(10, 784), 0.5)
+func initParams() (W1 *mat.Dense, b1 mat.Vector, W2 mat.Dense, b2 mat.Vector) {
+	W1 = Randn2D(10, 784)
+	Dot(a*mat.Dense, b*mat.Dense)
+	W1.RawMatrix().Data(W1, 0.5)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -137,50 +150,50 @@ func initParams() (W1 Matrix, b1 Matrix, W2 Matrix, b2 Matrix) {
 	return W1, b1, W2, b2
 }
 
-func ReLU(Z [][]float64) Matrix {
-	m, err := Maximum(Z, 0)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return m.(Matrix)
-}
+// func ReLU(Z [][]float64) Matrix {
+// 	m, err := Maximum(Z, 0)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	return m.(Matrix)
+// }
 
 // func ReLUDeriv(Z Matrix) {
 // 	return Z > 0
 // }
 
-func softmax(Z Matrix) Matrix {
-	m1 := Exp(Z)
-	s := Sum(m1)
-	A, err := Divide(m1, s)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return A
-}
+// func softmax(Z Matrix) Matrix {
+// 	m1 := Exp(Z)
+// 	s := Sum(m1)
+// 	A, err := Divide(m1, s)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	return A
+// }
 
-func forwardPropagation(W1 Matrix, b1 Matrix, W2 Matrix, b2 Matrix, X [][]int) (Matrix, Matrix, Matrix, Matrix) {
-	Z1, err := DotT(W1, X)
-	if err != nil {
-		log.Fatal(err)
-	}
-	Z1, err = Add(Z1, b1)
-	if err != nil {
-		log.Fatal(err)
-	}
-	A1 := ReLU(Z1)
-	Z2, err := Dot(W2, A1)
-	if err != nil {
-		log.Fatal(err)
-	}
-	Z2, err = Add(Z2, b2)
-	if err != nil {
-		log.Fatal(err)
-	}
-	A2 := softmax(A1)
-
-	return Z1, A1, Z2, A2
-}
+// func forwardPropagation(W1 Matrix, b1 Matrix, W2 Matrix, b2 Matrix, X [][]int) (Matrix, Matrix, Matrix, Matrix) {
+// 	Z1, err := DotT(W1, X)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	Z1, err = Add(Z1, b1)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	A1 := ReLU(Z1)
+// 	Z2, err := Dot(W2, A1)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	Z2, err = Add(Z2, b2)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	A2 := softmax(A1)
+//
+// 	return Z1, A1, Z2, A2
+// }
 
 func Max(Z []int) int {
 	maximum := 0.0
@@ -212,33 +225,23 @@ func oneHot(Y []int) [][]int {
 	return transposeMatrix(oneHotY)
 }
 
-func backPropagation(Z1 Matrix, A1 Matrix, Z2 Matrix, A2 Matrix, W2 Matrix, Y []int, m int) {
-	oneHotY := oneHot(Y)
-	dZ2, err := Subtract(A2, oneHotY)
-	if err != nil {
-		log.Fatal(err)
-	}
-	dZ2dotA1T, err := Dot(dZ2, transposeMatrix(A1))
-	if err != nil {
-		log.Fatal(err)
-	}
-	dW2, err := Multiply(dZ2dotA1T, 1/m)
-	if err != nil {
-		log.Fatal(err)
-	}
-	db2 := 1 / float64(m) * npSum(dZ2)
-	_, _ = dW2, db2
-}
-
-func npSum(a Matrix) float64 {
-	total := 0.0
-	for _, row := range a {
-		for _, val := range row {
-			total += val
-		}
-	}
-	return total
-}
+// func backPropagation(Z1 Matrix, A1 Matrix, Z2 Matrix, A2 Matrix, W2 Matrix, Y []int, m int) {
+// 	oneHotY := oneHot(Y)
+// 	dZ2, err := Subtract(A2, oneHotY)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	dZ2dotA1T, err := Dot(dZ2, transposeMatrix(A1))
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	dW2, err := Multiply(dZ2dotA1T, 1/m)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	db2 := 1 / float64(m) * npSum(dZ2)
+// 	_, _ = dW2, db2
+// }
 
 func SumA(a []float64) float64 {
 	sum := 0.0
@@ -287,33 +290,19 @@ func printDense(matrix *mat.Dense) {
 
 }
 
-func printMatrix[T any](matrix [][]T) {
-	fmt.Printf("Matrix dimensions: %d rows x %d columns\n", len(matrix), len(matrix[0]))
+func printMatrix(m mat.Matrix) {
+	r, c := m.Dims()
+	fmt.Printf("Matrix dimensions: %d rows x %d columns\n", r, c)
 
 	fmt.Println("[")
-	intfloat := 0
-	switch any(matrix).(type) {
-	case [][]int:
-		intfloat = 0
-	case [][]float64:
-		intfloat = 1
-	}
-	for i := 0; i < 5 && i < len(matrix); i++ {
+	for i := 0; i < 5 && i < r; i++ {
 		fmt.Printf("Row %d: [", i)
-		for j := 0; j < 785 && j < len(matrix[i]); j++ {
-			if intfloat == 0 {
-				fmt.Printf("%3d ", matrix[i][j])
-				if j%28 == 0 {
-					fmt.Println()
-				}
-			} else {
-				fmt.Printf("%.2f ", matrix[i][j])
-			}
+		for j := 0; j < 785 && j < c; j++ {
+			fmt.Printf("%.2f ", m.At(i, j))
 		}
 		fmt.Println("... ]")
 	}
 	fmt.Println("]")
-
 }
 
 func printDigit(matrix [][]int) {
@@ -376,13 +365,13 @@ func Rand(dims ...int) interface{} {
 
 type RandFunc func() float64
 
-func Rand2D(dimx, dimy int) Matrix {
+func Rand2D(dimx, dimy int) *mat.Dense {
 	return Rand2DF(dimx, dimy, rand.Float64)
 }
-func Randn2D(dimx, dimy int) Matrix {
+func Randn2D(dimx, dimy int) *mat.Dense {
 	return Rand2DF(dimx, dimy, rand.NormFloat64)
 }
-func Rand2DF(dimx, dimy int, rf RandFunc) Matrix {
+func Rand2DF(dimx, dimy int, rf RandFunc) *mat.Dense {
 	totalSize := dimx * dimy
 
 	// Generate a flat slice of random numbers from standard normal distribution
@@ -392,7 +381,7 @@ func Rand2DF(dimx, dimy int, rf RandFunc) Matrix {
 	}
 
 	// Reshape the flat slice according to the input dimensions
-	return reshape2D(flat, dimx, dimy)
+	return mat.NewDense(dimx, dimy, flat)
 }
 
 func Randn(dims ...int) interface{} {
@@ -449,71 +438,21 @@ func reshape1D(flat []float64, dim int) []float64 {
 	return result
 }
 
-// reshape takes a flat slice and reshapes it according to the given dimensions
-func reshape2D(flat []float64, dimx, dimy int) Matrix {
-	result := make([][]float64, dimx)
-	for i := range result {
-		subSlice := flat[i*dimy : (i+1)*dimy]
-		result[i] = reshape1D(subSlice, dimy)
-	}
+func Dot(a, b *mat.Dense) *mat.Dense {
+	aRows, _ := a.Dims()
+	bRows, bCols := b.Dims()
 
-	return result
-}
+	result := make([]float64, aRows, bCols)
 
-func DotT[T any](a Matrix, b [][]T) (Matrix, error) {
-	if len(a) == 0 || len(b) == 0 || len(a[0]) == 0 || len(b[0]) == 0 {
-		return nil, errors.New("empty matrix")
-	}
-	if len(a[0]) != len(b) {
-		return nil, errors.New("incompatible matrix dimensions")
-	}
-
-	rows, cols := len(a), len(b[0])
-	result := make(Matrix, rows)
-	for i := range result {
-		result[i] = make([]float64, cols)
-	}
-
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
-			for k := 0; k < len(b); k++ {
-				m := b[k][j]
-				switch any(m).(type) {
-				case int:
-					result[i][j] += a[i][k] * float64(any(m).(int))
-				case float64:
-					result[i][j] += a[i][k] * any(m).(float64)
-				}
+	for i := 0; i < aRows; i++ {
+		for j := 0; j < bCols; j++ {
+			for k := 0; k < bRows; k++ {
+				result[i*j] += a.At(i, j) * b.At(k, j)
 			}
 		}
 	}
 
-	return result, nil
-}
-
-func Dot(a, b Matrix) (Matrix, error) {
-	if len(a) == 0 || len(b) == 0 || len(a[0]) == 0 || len(b[0]) == 0 {
-		return nil, errors.New("empty matrix")
-	}
-	if len(a[0]) != len(b) {
-		return nil, errors.New("incompatible matrix dimensions")
-	}
-
-	rows, cols := len(a), len(b[0])
-	result := make(Matrix, rows)
-	for i := range result {
-		result[i] = make([]float64, cols)
-	}
-
-	for i := 0; i < rows; i++ {
-		for j := 0; j < cols; j++ {
-			for k := 0; k < len(b); k++ {
-				result[i][j] += a[i][k] * b[k][j]
-			}
-		}
-	}
-
-	return result, nil
+	return mat.NewDense(aRows, bCols, result)
 }
 
 func Maximum(a, b interface{}) (interface{}, error) {
@@ -593,114 +532,63 @@ func maximum2D(a [][]float64, b interface{}) ([][]float64, error) {
 type Operation func(a, b float64) float64
 
 // applyOperation is a generic function to apply an operation with broadcasting
-func applyOperation(a Matrix, b interface{}, op Operation) (Matrix, error) {
-	if len(a) == 0 || len(a[0]) == 0 {
-		return nil, errors.New("empty matrix")
-	}
+func applyOperation(a *mat.Dense, b interface{}, op Operation) *mat.Dense {
+	rows, cols := a.Dims()
 
-	rows, cols := len(a), len(a[0])
-	result := make(Matrix, rows)
-	for i := range result {
-		result[i] = make([]float64, cols)
-	}
-
+	result := make([]float64, rows*cols)
+	var resultMatrix *mat.Dense
 	switch b := b.(type) {
-	case Matrix:
-		if len(b) != rows || len(b[0]) != cols {
-			return nil, errors.New("matrices must have the same dimensions")
-		}
-		for i := range result {
-			for j := range result[i] {
-				result[i][j] = op(a[i][j], b[i][j])
-			}
-		}
+	case mat.Matrix:
+		resultMatrix = mat.NewDense(rows, cols, nil)
+		resultMatrix.Sub(a, b.(mat.Matrix))
 
 	case []float64:
 		if len(b) != cols {
-			return nil, errors.New("vector length must match matrix column count")
+			log.Fatal("vector length must match matrix column count")
 		}
-		for i := range result {
-			for j := range result[i] {
-				result[i][j] = op(a[i][j], b[j])
+		for i := range rows {
+			for j := range cols {
+				result[i*j] = op(a.At(i, j), b[j])
 			}
 		}
+		resultMatrix = mat.NewDense(rows, cols, result)
 
 	case float64:
-		for i := range result {
-			for j := range result[i] {
-				result[i][j] = op(a[i][j], b)
+		for i := range rows {
+			for j := range cols {
+				result[i*j] = op(a.At(i, j), b)
 			}
 		}
+		resultMatrix = mat.NewDense(rows, cols, result)
 
 	default:
-		return nil, errors.New("unsupported type for operation")
+		log.Fatal("unsupported type for operation")
 	}
 
-	return result, nil
+	return resultMatrix
 }
 
 // Add performs element-wise addition
-func Add(a Matrix, b interface{}) (Matrix, error) {
+func Add(a *mat.Dense, b interface{}) *mat.Dense {
 	return applyOperation(a, b, func(a, b float64) float64 { return a + b })
 }
 
 // Subtract performs element-wise subtraction
-func Subtract(a Matrix, b interface{}) (Matrix, error) {
+func Subtract(a *mat.Dense, b interface{}) *mat.Dense {
 	return applyOperation(a, b, func(a, b float64) float64 { return a - b })
 }
 
 // Multiply performs element-wise multiplication
-func Multiply(a Matrix, b interface{}) (Matrix, error) {
+func Multiply(a *mat.Dense, b interface{}) *mat.Dense {
 	return applyOperation(a, b, func(a, b float64) float64 { return a * b })
 }
 
 // Divide performs element-wise division
-func Divide(a Matrix, b interface{}) (Matrix, error) {
+func Divide(a *mat.Dense, b interface{}) *mat.Dense {
 	return applyOperation(a, b, func(a, b float64) float64 {
 		if b == 0 {
 			return 0 // Or you could return NaN: math.NaN()
 		}
 		return a / b
 	})
-}
-
-type UnaryOperation func(a float64) float64
-
-func applyUnaryOperation(a Matrix, op UnaryOperation) Matrix {
-	result := make(Matrix, len(a))
-	for i, row := range a {
-		result[i] = make([]float64, len(row))
-		for j, val := range row {
-			result[i][j] = op(val)
-		}
-	}
-	return result
-}
-
-// Exp performs element-wise exponential operation
-func Exp(a Matrix) Matrix {
-	return applyUnaryOperation(a, math.Exp)
-}
-
-func Rec(a Matrix) Matrix {
-	return applyUnaryOperation(a, func(x float64) float64 {
-		return 1 / x
-	})
-}
-
-func Sum(a Matrix) []float64 {
-	if len(a) == 0 || len(a[0]) == 0 {
-		return []float64{}
-	}
-
-	cols := len(a[0])
-	result := make([]float64, cols)
-
-	for _, row := range a {
-		for j, val := range row {
-			result[j] += val
-		}
-	}
-
-	return result
 }
