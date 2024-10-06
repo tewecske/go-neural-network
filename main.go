@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"math"
 	"math/rand"
 	"os"
 	"strconv"
 
 	"gonum.org/v1/gonum/mat"
+	t "gorgonia.org/tensor"
 )
 
 var asciiChars = " .,:;lodx%CO0@#KXWM"
@@ -119,35 +121,269 @@ func readData() ([]float64, int, int) {
 	return matrix, rows, cols
 }
 
-func main() {
-	W1, b1, W2, b2 := initParams()
-	printMatrix(W1)
-	printMatrix(b1)
-	printMatrix(W2)
-	printMatrix(b2)
+func nn1() {
+	inputs := []float32{1, 2, 3, 2.5}
+	weights1 := []float32{0.2, 0.8, -0.5, 1.0}
+	weights2 := []float32{0.5, -0.91, 0.26, -0.5}
+	weights3 := []float32{-0.26, -0.27, 0.17, 0.87}
+	var bias1 float32 = 2
+	var bias2 float32 = 3
+	var bias3 float32 = 0.5
+
+	output := []float32{
+		inputs[0]*weights1[0] +
+			inputs[1]*weights1[1] +
+			inputs[2]*weights1[2] +
+			inputs[3]*weights1[3] + bias1,
+		inputs[0]*weights2[0] +
+			inputs[1]*weights2[1] +
+			inputs[2]*weights2[2] +
+			inputs[3]*weights2[3] + bias2,
+		inputs[0]*weights3[0] +
+			inputs[1]*weights3[1] +
+			inputs[2]*weights3[2] +
+			inputs[3]*weights3[3] + bias3,
+	}
+
+	fmt.Println(output)
 }
 
-func initParams() (W1 *mat.Dense, b1 mat.Vector, W2 mat.Dense, b2 mat.Vector) {
-	W1 = Randn2D(10, 784)
-	Dot(a*mat.Dense, b*mat.Dense)
-	W1.RawMatrix().Data(W1, 0.5)
-	if err != nil {
-		log.Fatal(err)
+func nn2() {
+	inputs := []float32{1, 2, 3, 2.5}
+	weights := [][]float32{{0.2, 0.8, -0.5, 1.0},
+		{0.5, -0.91, 0.26, -0.5},
+		{-0.26, -0.27, 0.17, 0.87},
 	}
-	b1, err = Subtract(Randn2D(10, 1), 0.5)
-	if err != nil {
-		log.Fatal(err)
-	}
-	W2, err = Subtract(Randn2D(10, 10), 0.5)
-	if err != nil {
-		log.Fatal(err)
-	}
-	b2, err = Subtract(Randn2D(10, 1), 0.5)
-	if err != nil {
-		log.Fatal(err)
+	biases := []float32{2, 3, 0.5}
+
+	layerOutputs := make([]float32, 3)
+
+	for i := range weights {
+		neuronWeights := weights[i]
+		neuronBias := biases[i]
+		for j := range inputs {
+			layerOutputs[i] += inputs[j] * neuronWeights[j]
+		}
+		layerOutputs[i] += neuronBias
 	}
 
-	return W1, b1, W2, b2
+	fmt.Println(layerOutputs)
+}
+
+func nn3() {
+
+	// mRawWeights := []float64{0.2, 0.8, -0.5, 1.0,
+	// 	0.5, -0.91, 0.26, -0.5,
+	// 	-0.26, -0.27, 0.17, 0.87,
+	// }
+	// mInputs := mat.NewDense(1, 4, []float64{1, 2, 3, 2.5})
+	// mWeights := mat.NewDense(3, 4, mRawWeights)
+	// mBias := mat.NewDense(1, 1, []float64{2.0})
+	// mOutputs := mat.NewDense(1, 1, nil)
+	// mOutputs.Mul(mInputs, mWeights.T())
+	// mOutputs.Add(mOutputs, mBias)
+	// fmt.Println(mOutputs.RawMatrix().Data)
+	// fmt.Println(mOutputs.At(0, 0))
+	// fmt.Println("-----------------------------------------")
+	//
+	rawWeights := []float32{0.2, 0.8, -0.5, 1.0,
+		0.5, -0.91, 0.26, -0.5,
+		-0.26, -0.27, 0.17, 0.87,
+	}
+	inputs := t.New(t.WithShape(4), t.WithBacking([]float32{1, 2, 3, 2.5}))
+	weights := t.New(t.WithShape(3, 4), t.WithBacking(rawWeights))
+	var bias t.Tensor = t.New(t.WithBacking([]float32{2.0, 3.0, 0.5}))
+
+	dotProduct, err := t.Dot(weights, inputs)
+	if err != nil {
+		slog.Error("Error computing dot product of", "inputs", inputs, "weights", weights)
+	}
+	output, _ := t.Add(dotProduct, bias)
+	fmt.Println(output)
+	// fmt.Println(t.WhichBLAS())
+}
+
+func AddVector(inputs t.Tensor, vector []float32) (t.Tensor, error) {
+	newShape := inputs.Shape()
+	nV := make([]float32, newShape.TotalSize())
+	for i := range nV {
+		nV[i] = vector[i%len(vector)]
+	}
+	newVector := t.New(t.WithShape(newShape...), t.WithBacking(nV))
+
+	return t.Add(inputs, newVector)
+}
+
+func nn4() {
+
+	// mRawInputs := []float64{
+	// 	1.0, 2.0, 3.0, 2.5,
+	// 	2.0, 5.0, -1.0, 2.0,
+	// 	-1.5, 2.7, 3.3, -0.8,
+	// }
+	// mRawWeights := []float64{
+	// 	0.2, 0.8, -0.5, 1.0,
+	// 	0.5, -0.91, 0.26, -0.5,
+	// 	-0.26, -0.27, 0.17, 0.87,
+	// }
+	// mInputs := mat.NewDense(3, 4, mRawInputs)
+	// mWeights := mat.NewDense(3, 4, mRawWeights)
+	// mBias := mat.NewDense(1, 3, []float64{2.0, 3.0, -0.5})
+	// mOutputs := mat.NewDense(1, 1, nil)
+	// mWeightsT := mWeights.T()
+	// fmt.Println(mBias)
+	// fmt.Println(mInputs.Dims())
+	// // fmt.Println(mWeightsT.Dims())
+	// // mOutputs.Mul(mInputs, mWeights)
+	// mOutputs.Product(mInputs, mWeightsT)
+	// // mOutputs.Add(mOutputs, mBias)
+	// fmt.Println(mOutputs.RawMatrix().Data)
+	// fmt.Println(mOutputs.At(0, 0))
+	// fmt.Println("-----------------------------------------")
+
+	rawInputs := []float32{
+		1.0, 2.0, 3.0, 2.5,
+		2.0, 5.0, -1.0, 2.0,
+		-1.5, 2.7, 3.3, -0.8,
+	}
+	rawWeights := []float32{
+		0.2, 0.8, -0.5, 1.0,
+		0.5, -0.91, 0.26, -0.5,
+		-0.26, -0.27, 0.17, 0.87,
+	}
+	inputs := t.New(t.WithShape(3, 4), t.WithBacking(rawInputs))
+	weights := t.New(t.WithShape(3, 4), t.WithBacking(rawWeights))
+	// var biases t.Tensor = t.New(t.WithShape(1, 3), t.WithBacking([]float32{2.0, 3.0, 0.5}))
+	biases := []float32{2.0, 3.0, 0.5}
+
+	weights.T()
+	dotProduct, err := t.Dot(inputs, weights)
+	if err != nil {
+		slog.Error("Error computing dot product of", "inputs", inputs, "weights", weights)
+	}
+	fmt.Println(dotProduct)
+	// output, _ := t.Add(dotProduct, biases)
+	output, _ := AddVector(dotProduct, biases)
+	fmt.Println(output)
+	// fmt.Println(t.WhichBLAS())
+}
+
+func nn5() {
+
+	// mRawInputs := []float64{
+	// 	1.0, 2.0, 3.0, 2.5,
+	// 	2.0, 5.0, -1.0, 2.0,
+	// 	-1.5, 2.7, 3.3, -0.8,
+	// }
+	// mRawWeights := []float64{
+	// 	0.2, 0.8, -0.5, 1.0,
+	// 	0.5, -0.91, 0.26, -0.5,
+	// 	-0.26, -0.27, 0.17, 0.87,
+	// }
+	// mInputs := mat.NewDense(3, 4, mRawInputs)
+	// mWeights := mat.NewDense(3, 4, mRawWeights)
+	// mBias := mat.NewDense(1, 3, []float64{2.0, 3.0, -0.5})
+	// mOutputs := mat.NewDense(1, 1, nil)
+	// mWeightsT := mWeights.T()
+	// fmt.Println(mBias)
+	// fmt.Println(mInputs.Dims())
+	// // fmt.Println(mWeightsT.Dims())
+	// // mOutputs.Mul(mInputs, mWeights)
+	// mOutputs.Product(mInputs, mWeightsT)
+	// // mOutputs.Add(mOutputs, mBias)
+	// fmt.Println(mOutputs.RawMatrix().Data)
+	// fmt.Println(mOutputs.At(0, 0))
+	// fmt.Println("-----------------------------------------")
+
+	rawInputs := []float32{
+		1.0, 2.0, 3.0, 2.5,
+		2.0, 5.0, -1.0, 2.0,
+		-1.5, 2.7, 3.3, -0.8,
+	}
+	inputs := t.New(t.WithShape(3, 4), t.WithBacking(rawInputs))
+
+	rawWeights1 := []float32{
+		0.2, 0.8, -0.5, 1.0,
+		0.5, -0.91, 0.26, -0.5,
+		-0.26, -0.27, 0.17, 0.87,
+	}
+	weights1 := t.New(t.WithShape(3, 4), t.WithBacking(rawWeights1))
+	weights1.T()
+	// var biases1 t.Tensor = t.New(t.WithShape(1, 3), t.WithBacking([]float32{2.0, 3.0, 0.5}))
+	biases1 := []float32{2.0, 3.0, 0.5}
+
+	rawWeights2 := []float32{
+		0.1, -0.14, 0.5,
+		-0.5, 0.12, -0.33,
+		-0.44, 0.73, -0.13,
+	}
+	weights2 := t.New(t.WithShape(3, 3), t.WithBacking(rawWeights2))
+	weights2.T()
+	// var biases2 t.Tensor = t.New(t.WithShape(1, 3), t.WithBacking([]float32{-1, 2, -0.5}))
+	biases2 := []float32{-1, 2, -0.5}
+
+	// forward pass
+	dotProduct, err := t.Dot(inputs, weights1)
+	if err != nil {
+		slog.Error("Error computing dot product of", "inputs", inputs, "weights", weights1)
+	}
+	fmt.Printf("dotProduct\n%s", dotProduct)
+	// layer1, _ := t.Add(dotProduct, biases)
+	layer1, _ := AddVector(dotProduct, biases1)
+	fmt.Printf("layer1\n%s", layer1)
+	// fmt.Println(t.WhichBLAS())
+
+	dotProduct2, err := t.Dot(layer1, weights2)
+	if err != nil {
+		slog.Error("Error computing dot product of", "layer1", layer1, "weights2", weights2)
+	}
+	fmt.Printf("dotProduct2\n%s", dotProduct2)
+	// layer1, _ := t.Add(dotProduct, biases)
+	layer2, _ := AddVector(dotProduct2, biases2)
+	fmt.Printf("layer2\n%s", layer2)
+	// fmt.Println(t.WhichBLAS())
+}
+
+func offmain() {
+	dataX, dataY := processData()
+	fmt.Printf("dataX: %f\n", dataX)
+	fmt.Printf("dataY: %f\n", dataY)
+}
+
+// func main() {
+// 	// W1, b1, W2, b2 := initParams()
+// 	W1 := initParams()
+// 	printMatrix(W1)
+// 	// printMatrix(b1)
+// 	// printMatrix(W2)
+// 	// printMatrix(b2)
+// }
+
+func sub(s float64) func(i, j int, v float64) float64 {
+	return func(i, j int, v float64) float64 {
+		return v - s
+	}
+}
+
+func initParams() (W1 *mat.Dense) /*(W1 *mat.Dense, b1 mat.Vector, W2 mat.Dense, b2 mat.Vector)*/ {
+	W1 = Rand2D(10, 784)
+	W1.Apply(sub(0.5), W1)
+
+	// b1, err = Subtract(Randn2D(10, 1), 0.5)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// W2, err = Subtract(Randn2D(10, 10), 0.5)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// b2, err = Subtract(Randn2D(10, 1), 0.5)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	//
+	// return W1, b1, W2, b2
+	return W1
 }
 
 // func ReLU(Z [][]float64) Matrix {
