@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	t "gorgonia.org/tensor"
 )
 
 func processData() ([][]float64, []float64) {
@@ -340,5 +342,18 @@ func processData() ([][]float64, []float64) {
 		}
 	}
 	// fmt.Printf("goY: %d\n", goY)
+
 	return goX, goY
+}
+
+func getBacking(goX [][]float64) t.Tensor {
+	xBacking := make([]float64, len(goX)*len(goX[0]))
+	for i, x := range goX {
+		for j, y := range x {
+			xBacking[i*len(x)+j] = y
+		}
+	}
+	fmt.Printf("xBacking: %f\n", xBacking)
+	X := t.New(t.WithShape(len(goX), len(goX[0])), t.WithBacking(xBacking))
+	return X
 }

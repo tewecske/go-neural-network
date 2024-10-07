@@ -203,9 +203,9 @@ func nn3() {
 	// fmt.Println(t.WhichBLAS())
 }
 
-func AddVector(inputs t.Tensor, vector []float32) (t.Tensor, error) {
+func AddVector(inputs t.Tensor, vector []float64) (t.Tensor, error) {
 	newShape := inputs.Shape()
-	nV := make([]float32, newShape.TotalSize())
+	nV := make([]float64, newShape.TotalSize())
 	for i := range nV {
 		nV[i] = vector[i%len(vector)]
 	}
@@ -241,12 +241,12 @@ func nn4() {
 	// fmt.Println(mOutputs.At(0, 0))
 	// fmt.Println("-----------------------------------------")
 
-	rawInputs := []float32{
+	rawInputs := []float64{
 		1.0, 2.0, 3.0, 2.5,
 		2.0, 5.0, -1.0, 2.0,
 		-1.5, 2.7, 3.3, -0.8,
 	}
-	rawWeights := []float32{
+	rawWeights := []float64{
 		0.2, 0.8, -0.5, 1.0,
 		0.5, -0.91, 0.26, -0.5,
 		-0.26, -0.27, 0.17, 0.87,
@@ -254,7 +254,7 @@ func nn4() {
 	inputs := t.New(t.WithShape(3, 4), t.WithBacking(rawInputs))
 	weights := t.New(t.WithShape(3, 4), t.WithBacking(rawWeights))
 	// var biases t.Tensor = t.New(t.WithShape(1, 3), t.WithBacking([]float32{2.0, 3.0, 0.5}))
-	biases := []float32{2.0, 3.0, 0.5}
+	biases := []float64{2.0, 3.0, 0.5}
 
 	weights.T()
 	dotProduct, err := t.Dot(inputs, weights)
@@ -295,14 +295,14 @@ func nn5() {
 	// fmt.Println(mOutputs.At(0, 0))
 	// fmt.Println("-----------------------------------------")
 
-	rawInputs := []float32{
+	rawInputs := []float64{
 		1.0, 2.0, 3.0, 2.5,
 		2.0, 5.0, -1.0, 2.0,
 		-1.5, 2.7, 3.3, -0.8,
 	}
 	inputs := t.New(t.WithShape(3, 4), t.WithBacking(rawInputs))
 
-	rawWeights1 := []float32{
+	rawWeights1 := []float64{
 		0.2, 0.8, -0.5, 1.0,
 		0.5, -0.91, 0.26, -0.5,
 		-0.26, -0.27, 0.17, 0.87,
@@ -310,9 +310,9 @@ func nn5() {
 	weights1 := t.New(t.WithShape(3, 4), t.WithBacking(rawWeights1))
 	weights1.T()
 	// var biases1 t.Tensor = t.New(t.WithShape(1, 3), t.WithBacking([]float32{2.0, 3.0, 0.5}))
-	biases1 := []float32{2.0, 3.0, 0.5}
+	biases1 := []float64{2.0, 3.0, 0.5}
 
-	rawWeights2 := []float32{
+	rawWeights2 := []float64{
 		0.1, -0.14, 0.5,
 		-0.5, 0.12, -0.33,
 		-0.44, 0.73, -0.13,
@@ -320,7 +320,7 @@ func nn5() {
 	weights2 := t.New(t.WithShape(3, 3), t.WithBacking(rawWeights2))
 	weights2.T()
 	// var biases2 t.Tensor = t.New(t.WithShape(1, 3), t.WithBacking([]float32{-1, 2, -0.5}))
-	biases2 := []float32{-1, 2, -0.5}
+	biases2 := []float64{-1, 2, -0.5}
 
 	// forward pass
 	dotProduct, err := t.Dot(inputs, weights1)
@@ -348,6 +348,34 @@ func offmain() {
 	dataX, dataY := processData()
 	fmt.Printf("dataX: %f\n", dataX)
 	fmt.Printf("dataY: %f\n", dataY)
+}
+
+func main() {
+	rawX, _ := processData()
+	X := getBacking(rawX)
+
+	layer := NewLayerDense(2, 3)
+
+	fmt.Printf("layer.Weights\n%f\n", layer.Weights)
+	fmt.Printf("layer.Biases\n%f\n", layer.Biases)
+
+	layer.Forward(X)
+
+	fmt.Printf("layer1 output\n%f\n", layer.Output)
+
+	layer2 := NewLayerDense(3, 1)
+	layer2.Forward(layer.Output)
+
+	fmt.Printf("shape: %d\n", layer2.Output.Shape())
+	fmt.Printf("layer2 output\n%f\n", layer2.Output)
+	fmt.Println("layer2 output", layer2.Output)
+
+	// ReLU
+	relu := NewActivationReLU()
+	outputs := relu.Forward(layer2)
+
+	fmt.Printf("output: %f", outputs)
+
 }
 
 // func main() {
@@ -827,4 +855,11 @@ func Divide(a *mat.Dense, b interface{}) *mat.Dense {
 		}
 		return a / b
 	})
+}
+
+func unsafe[T any](t T, err error) T {
+	if err != nil {
+		log.Panicln(err)
+	}
+	return t
 }

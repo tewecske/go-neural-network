@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
-	"log"
 	"os"
 
 	"gonum.org/v1/plot"
@@ -12,14 +10,14 @@ import (
 	"gonum.org/v1/plot/vg/draw"
 )
 
-func main() {
-	dataX, dataY := processData()
-	fmt.Printf("dataX: %f\n", dataX)
-	fmt.Printf("dataY: %f\n", dataY)
-
-	path := "plot.png"
-	PlotData(dataX, dataY, path)
-}
+// func main() {
+// 	dataX, dataY := processData()
+// 	fmt.Printf("dataX: %f\n", dataX)
+// 	fmt.Printf("dataY: %f\n", dataY)
+//
+// 	path := "plot.png"
+// 	PlotData(dataX, dataY, path)
+// }
 
 func PlotData(data [][]float64, colorData []float64, path string) {
 	p := plot.New()
@@ -54,11 +52,4 @@ var CMap map[float64]color.Color = map[float64]color.Color{
 	0: color.RGBA{0, 0, 255, 255},
 	1: color.RGBA{255, 0, 0, 255},
 	2: color.RGBA{0, 255, 0, 255},
-}
-
-func unsafe[T any](t T, err error) T {
-	if err != nil {
-		log.Fatal(err)
-	}
-	return t
 }
